@@ -1,0 +1,3 @@
+databases/*.db
+imgroot
+.ipynb_checkpoints/
