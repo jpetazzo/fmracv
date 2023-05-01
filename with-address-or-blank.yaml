@@ -1,0 +1,13 @@
+model_file: with-address-or-blank.h5
+port: 8001
+training_data:
+- blank:
+  - lists/misc-blank
+  - lists/mailseum-blank
+  - lists/rj-blank
+- with_address:
+  - lists/misc-with_address
+  - lists/mailseum-with_address
+  - lists/rj-with_address
+- undetermined:
+  - lists/undetermined

@@ -1,0 +1,5 @@
+click
+flask
+pyyaml
+tensorflow
+tqdm

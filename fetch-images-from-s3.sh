@@ -9,4 +9,4 @@ fi
 
 cat "$1" | while IFS= read key; do
   [ -f "$LOCAL/$key" ] || echo "$key"
-done | xargs -P 10 -I @@KEY@@ -n1 aws s3 cp "$REMOTE/@@KEY@@" "$LOCAL/@@KEY@@"
+done | xargs -P 10 -I @@KEY@@ -n1 aws --profile ephemerasearch s3 cp "$REMOTE/@@KEY@@" "$LOCAL/@@KEY@@"

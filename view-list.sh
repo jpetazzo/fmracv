@@ -10,11 +10,15 @@ INPUT_LIST="$1"
 PAGE=0
 while [ "$(($PAGE*$BATCH_SIZE))" -lt "$(wc -l < "$INPUT_LIST")" ]; do
   tail -n "+$(($PAGE*$BATCH_SIZE+1))" "$INPUT_LIST" | head -n "$BATCH_SIZE" | 
-    tr "\n" "\0" | xargs -0 feh \
+    tr "\n" "\0" | {
+      cd "$(dirname "$0")/imgroot"
+      xargs -0 feh \
       --fullscreen --index \
       --limit-width=3840 --limit-height=2160 \
       --thumb-height=400 --thumb-width=512 \
       #
+    }
+  echo "That was picture $(($PAGE*$BATCH_SIZE)) out of $(wc -l < "$INPUT_LIST")."
   echo "Press ENTER for next page, or CTRL-C to abort."
   read
   PAGE=$(($PAGE+1))
