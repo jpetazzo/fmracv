@@ -2,15 +2,17 @@
 import click
 import flask
 import json
+import logging
 import os
 import pickle
 import random
+import requests
 import tensorflow as tf
 from tqdm import tqdm
 import yaml
 
 
-BASE_DIR = "imgroot"
+BASE_DIR = os.environ.get("BASE_DIR", "imgroot")
 BATCH_SIZE = 32
 EPOCHS = 10
 CHANNELS = 3
@@ -18,6 +20,7 @@ IMAGE_WIDTH, IMAGE_HEIGHT = (224, 224)
 DTYPE = tf.float16
 VRAM = 10_000_000_000
 CONFIDENCE_THRESHOLD = 0.95
+
 
 class Model:
     def __init__(self, config_file):
@@ -45,7 +48,7 @@ class Model:
         image_count = VRAM // IMAGE_WIDTH // IMAGE_HEIGHT // CHANNELS // DTYPE.size
         print(f"Truncating data set to keep only {image_count} images.")
         del self.images[image_count:]
-        
+
     def split_data(self):
         training_size = int(0.8 * len(self.images))
         self.training_images = self.images[:training_size]
@@ -125,6 +128,10 @@ class Model:
             for image in images:
                 if "tensor" not in image:
                     image["tensor"] = load_image(image["filename"])
+            # Don't include images that failed to load
+            images = [ image for image in images if image["tensor"] is not None ]
+            if not images:
+                raise ValueError("no image had a valid tensor")
             batch_tensor = tf.stack([image["tensor"] for image in images])
         batch_predictions = self.model.predict(batch_tensor, verbose=0)
         for image, prediction in zip(images, batch_predictions):
@@ -140,18 +147,20 @@ def load_image(file_name):
     try:
         data = tf.io.read_file(os.path.join(BASE_DIR, file_name))
         return load_image_from_bytes(data)
-    except:
-        print(f"⚠️ Failed to load image {file_name}")
+    except Exception as e:
+        print(f"⚠️ Failed to load image {file_name} ({e})")
         return
 
 
 def load_image_from_bytes(data, file_name="<no filename available>"):
     img = tf.image.decode_jpeg(data, channels=CHANNELS)
     height, width, channels = img.shape
+    if height > width:
+        img = tf.image.rot90(img)
+        height, width, channels = img.shape
     ratio = width / height
-    if ratio < 1.4 or ratio > 1.8:
-        raise ValueError(f"Image has a ratio outside of 1.4-1.8 ({width}x{height})")
-        return
+    if ratio > 2:
+        raise ValueError(f"Image has width/height ratio greater than 2 ({width}x{height})")
     img = tf.image.resize_with_pad(
         img, target_width=IMAGE_WIDTH, target_height=IMAGE_HEIGHT
     )
@@ -189,13 +198,44 @@ def serve(config_file):
     m = Model(config_file)
     m.load_model()
     app = flask.Flask(__name__)
-    @app.route("/predict", methods=["POST"])
+    @app.errorhandler(Exception)
+    def handle_exception(error):
+        logging.error(error, exc_info=True)
+        response = flask.jsonify({
+            "error": error.__class__.__name__,
+            "details": str(error)
+        })
+        response.status_code = 500
+        return response
+    @app.route("/predict", methods=["GET", "POST"])
     def predict():
-        data = flask.request.files["image"].read()
-        tensor = load_image_from_bytes(data)
-        image = dict(tensor=tensor)
-        m.predict_batch_images([image])
-        return flask.jsonify(image["prediction"])
+        if "image" in flask.request.files:
+            data = flask.request.files["image"].read()
+            tensor = load_image_from_bytes(data)
+            image = dict(tensor=tensor)
+            m.predict_batch_images([image])
+            return flask.jsonify(image["prediction"])
+        urls = flask.request.args.get("urls") or flask.request.form.get("urls")
+        if urls:
+            urls = json.loads(urls)
+            images = []
+            for url in urls:
+                image = dict(url=url, tensor=None)
+                images.append(image)
+                try:
+                    image["tensor"] = load_image_from_bytes(requests.get(url).content)
+                except Exception as e:
+                    image["prediction"] = dict(
+                        error = e.__class__.__name__,
+                        details = str(e)
+                    )
+            m.predict_batch_images(images)
+            return flask.jsonify({
+                image["url"]: image["prediction"]
+                for image in images
+            })
+        return "This endpoint expects either an 'image' or a list of 'urls'.", 400
+
     @app.route("/", methods=["GET"])
     def index():
         return f"Model configuration: {config_file}\n"
@@ -240,6 +280,8 @@ def predict(config_file, image_list_file):
         m.predict_batch_images(batch)
         prediction = "inconclusive"
         for image in batch:
+            if "prediction" not in image:
+                image["prediction"] = {}
             for label, confidence in image["prediction"].items():
                 if confidence > CONFIDENCE_THRESHOLD:
                     prediction = label

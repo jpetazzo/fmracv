@@ -132,6 +132,12 @@ curl -F "image=@path/to/image.jpg" localhost:8001/predict
 
 (Where `8001` should be the port number in the `model-config.yaml` file.)
 
+It is also possible to pass a list of URLs:
+
+```shell
+curl -d 'urls=["http://...", "http://...", ...]' localhost:8001/predict
+```
+
 ⚠️ The serving is currently done with the default Flask server, which is
 considered not "production-ready". My current approach is that it's fine for my needs
 (ad-hoc invocation of the model). Note that if you need to process large
@@ -167,7 +173,7 @@ deploy to Cloud Run or whatever.
 
 - [X] Make it easy to train and run multiple labels
       (implemented with the YAML configuration)
-- [ ] When serving the model with the API endpoint, allow the user to
+- [X] When serving the model with the API endpoint, allow the user to
       specify an URL instead of having to POST the image
 - [ ] Store the performance of each model with tensorboard for easier comparison
 - [ ] Compare performance of the model with larger input layers

@@ -9,6 +9,7 @@ rsync -Pav \
   --exclude imgroot \
   --exclude lists \
   --exclude notebooks \
+  --exclude snapshots \
   --exclude __pycache__ \
   --exclude .git \
   --exclude .ipynb_checkpoints \
