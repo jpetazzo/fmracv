@@ -219,27 +219,36 @@ def serve(config_file):
         if urls:
             urls = json.loads(urls)
             images = []
+            code = 200
             for url in urls:
                 image = dict(url=url, tensor=None)
                 images.append(image)
+                req = requests.get(url)
+                if req.status_code not in [200]:
+                    code = req.status_code
+                    image["prediction"] = dict(
+                        error = req.content.decode().strip(),
+                    )
+                    break
                 try:
-                    image["tensor"] = load_image_from_bytes(requests.get(url).content)
+                    image["tensor"] = load_image_from_bytes(req.content)
                 except Exception as e:
                     image["prediction"] = dict(
                         error = e.__class__.__name__,
                         details = str(e)
                     )
-            m.predict_batch_images(images)
+            if code == 200:
+                m.predict_batch_images(images)
             return flask.jsonify({
-                image["url"]: image["prediction"]
+                image["url"]: image.get("prediction")
                 for image in images
-            })
+            }), code
         return "This endpoint expects either an 'image' or a list of 'urls'.", 400
 
     @app.route("/", methods=["GET"])
     def index():
         return f"Model configuration: {config_file}\n"
-    app.run(host="0.0.0.0", port=m.config["port"])
+    app.run(host="0.0.0.0", port=m.config["port"], debug=os.environ.get("DEBUG"))
 
 
 @cli.command()
