@@ -240,7 +240,7 @@ def serve(config_file):
             if code == 200:
                 m.predict_batch_images(images)
             return flask.jsonify({
-                image["url"]: image["prediction"]
+                image["url"]: image.get("prediction")
                 for image in images
             }), code
         return "This endpoint expects either an 'image' or a list of 'urls'.", 400
