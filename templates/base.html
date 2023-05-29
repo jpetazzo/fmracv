@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FMRACV</title>
+    <style>
+        .image-grid-container {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, 300px);
+          grid-gap: 0px;
+        }
+
+        .image-grid-item {
+          width: 300px;
+          height: 200px;
+        }
+
+        .image-grid-item img {
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+        }
+
+        img.selected {
+            filter: invert(40%);
+        }
+
+        button#confirmLabels, button#nextPage {
+            width: 100%;
+        }
+
+        img.todo-label {
+            width: 100%;
+        }
+    </style>
+    <script>
+    function handleImageClick(image) {
+        image.classList.toggle('selected');
+    }
+
+    // Get all the images and attach the click event listener
+    document.addEventListener('DOMContentLoaded', function() {
+        var images = document.querySelectorAll('img');
+        for (var i = 0; i < images.length; i++) {
+          images[i].addEventListener('click', function () {
+            handleImageClick(this);
+          });
+        }
+    });
+
+    function confirmLabels() {
+        const payload = {};
+        const images = document.getElementsByTagName("img");
+
+        for (let i = 0; i < images.length; i++) {
+            const image = images[i];
+            const sha256 = image.getAttribute("sha256");
+            const label = image.classList.contains("selected") ? "" : "{{label}}";
+            payload[sha256] = label;
+        }
+        postLabels(payload);
+    }
+
+    function setLabel(sha256, label) {
+        postLabels({[sha256]: label});
+    }
+
+    function postLabels(payload) {
+        console.log(payload);
+        fetch('/label/{{model}}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+          if (response.ok) {
+            location.reload();
+          } else {
+            console.error('Update failed.');
+          }
+        })
+        .catch(error => {
+          console.error('An error occurred while updating:', error);
+        });
+    }
+    </script>
+</head>
+<body>
+    <div class="content">
+        <p>
+            <a href="/">🏠️ Take me home</a>
+            |
+            🧠 <a href="/model/{{model}}">Model: {{model}}</a>
+            |
+            🏷️ Label: {{label or "???"}}
+        </p>
+        {% if data %}
+            <p>
+                Click on the images that have NOT been labeled correctly.
+                Then click on the CONFIRM button at the bottom of the page.
+                There are up to {{count}} images in that set.
+            </p>
+            {% if page %}
+            <div>
+                {% for p in range(1, pages+1) %}
+                    {% if p != page %}
+                        <a href="/model/{{model}}/trainingdata/{{label}}/{{p}}">{{ p }}</a>
+                    {% else %}
+                        {{ [p] }}
+                    {% endif %}
+                {% endfor %}
+                <button 
+                    id="nextPage" 
+                    onclick="window.location.href = '/model/{{model}}/trainingdata/{{label}}/{{page+1}}'"
+                >These labels are all good, go to next page!</button>
+            </div>
+            {% endif %}
+            <div class="image-grid-container">
+            {% for r_image, r_label, r_hover in data %}
+                <div class="image-grid-item">
+                    <img 
+                        sha256="{{r_label.sha256}}"
+                        src="/image/{{r_image.origin}}/{{r_image.path}}"
+                        title="{{r_hover}}"
+                    >
+                </div>
+            {% endfor %}
+            </div>
+            <button id="confirmLabels" onclick="confirmLabels()">Confirm and set these labels!</button>
+        {% endif %}
+        {% if todo_image %}
+            <p>{{ prediction }} - TODO:{{ todo }}</p>
+            {% for label in labels + [""] %}
+                <button 
+                    id="label{{ loop.index }}"
+                    onclick="setLabel('{{ todo_image.sha256 }}','{{ label }}')"
+                >{{ loop.index}} - {{ label or "SKIP" }}</button>
+                <script>
+                  document.addEventListener('keydown', function(event) {
+                    if (event.key === '{{ loop.index }}') {
+                      const button = document.getElementById('label{{ loop.index }}');
+                      button.click();
+                    }
+                  });                    
+                </script>
+            {% endfor %}
+            <img class="todo-label" src="/image/{{ todo_image.origin }}/{{ todo_image.path }}">
+        {% endif %}
+    </div>
+</body>
+</html>

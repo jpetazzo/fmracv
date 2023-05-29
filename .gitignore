@@ -1,5 +1,4 @@
-databases/*.db
-imgroot
+*.db
 .ipynb_checkpoints/
 __pycache__
 lists
