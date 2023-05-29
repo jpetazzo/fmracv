@@ -119,6 +119,7 @@ def add_image_metadata():
         for i, image in tqdm(enumerate(images_without_metadata), total=images_without_metadata.count()):
             image_path = db.make_path(image.origin, image.path)
             image.sha256 = hashlib.sha256(open(image_path, "rb").read()).hexdigest()
+            image.md5 = hashlib.md5(open(image_path, "rb").read()).hexdigest()
             try:
                 image.width, image.height = PIL.Image.open(image_path).size
             except Exception as e:

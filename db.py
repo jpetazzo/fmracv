@@ -24,6 +24,7 @@ class Image(Base):
     path = Column(String(1024), nullable=False)
     size = Column(Integer)
     sha256 = Column(String(64))
+    md5 = Column(String(32))
     height = Column(Integer)
     width = Column(Integer)
 
@@ -59,6 +60,7 @@ class Label(Base):
     # - postcard.back_sha256 (when the model type is POSTCARD)
     sha256 = Column(String(64), ForeignKey("image.sha256"))
     prediction = Column(String(256))
+    label = Column(String(16))
 
     __table_args__ = (
         UniqueConstraint('model_name', 'sha256'),
@@ -70,16 +72,8 @@ Session = sqlalchemy.orm.sessionmaker(bind=engine)
 Base.metadata.create_all(engine)
 
 
-IMGROOT = os.path.join(os.path.dirname(__file__), "imgroot")
-
-
 def get_root(origin):
-    if origin == "2022-refried-jeans":
-        return "/mnt/2022-refried-jeans"
-    elif origin.startswith("FMRA"):
-        return os.path.join("/mnt", origin)
-    else:
-        return os.path.join(IMGROOT, origin)
+    return f"/mnt/FMRA-{origin}"
 
 
 def make_path(origin, path):

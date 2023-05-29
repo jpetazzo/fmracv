@@ -16,8 +16,8 @@ CHANNELS = 3
 IMAGE_WIDTH, IMAGE_HEIGHT = (224, 224)
 DTYPE = tf.float16
 CONFIDENCE_THRESHOLD = 0.95
-CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
-SNAPSHOTS_DIR = os.path.join(os.path.dirname(__file__), "snapshots")
+CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "cache")
+SNAPSHOTS_DIR = os.path.join(os.path.dirname(__file__), "..", "snapshots")
 TRAINING_VALIDATION_SPLIT = 0.9
 PIL.ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -57,15 +57,6 @@ class ImageClassifierType1(tf.keras.models.Sequential):
             tkl.Dense(256, activation="relu"),
             tkl.Dense(len(self.labels), activation="softmax"),
         ])
-
-    """
-    def get_config(self):
-        return dict(labels=self.labels)
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    """
 
 
 def load_as_landscape(filename_or_fileobj):
